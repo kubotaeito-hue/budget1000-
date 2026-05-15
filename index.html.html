@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="1000円生活">
+<title>1日1,000円生活トラッカー</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100dvh}
+.top-bar{background:#fff;border-bottom:0.5px solid #e0e0da;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.app-title{font-size:15px;font-weight:600;color:#1a1a1a}
+.week-nav{display:flex;align-items:center;gap:8px}
+.wnav-btn{border:0.5px solid #ccc;border-radius:8px;background:none;padding:8px 14px;font-size:15px;color:#555;cursor:pointer}
+.wnav-btn:active{background:#f0f0ea}
+.week-lbl{font-size:13px;font-weight:500;color:#1a1a1a;min-width:110px;text-align:center}
+.main{padding:12px 14px;max-width:480px;margin:0 auto}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stat{background:#fff;border-radius:12px;padding:12px 14px;border:0.5px solid #e8e8e2}
+.stat-lbl{font-size:11px;color:#888;margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:600;color:#1a1a1a}
+.stat-val.pos{color:#0a6644}.stat-val.neg{color:#b33a1a}
+.day-list{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.day-item{background:#fff;border:0.5px solid #e0e0da;border-radius:14px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none}
+.day-item:active{background:#f7f7f2}
+.day-item.today{border-color:#1D9E75;border-width:1px}
+.day-item.selected{border-color:#1D9E75;border-width:1.5px;background:#f5fbf8}
+.day-item.future{opacity:0.45;cursor:default}
+.day-left{flex:1;min-width:0}
+.day-name{font-size:14px;font-weight:600;color:#1a1a1a}
+.today-badge{font-size:10px;font-weight:500;color:#0F6E56;background:#E1F5EE;border-radius:20px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+.day-sub{font-size:11px;color:#999;margin-top:2px}
+.day-bar{height:4px;background:#ececea;border-radius:2px;margin-top:7px;overflow:hidden}
+.day-bar-fill{height:100%;border-radius:2px;background:#1D9E75;transition:width .25s}
+.day-bar-fill.over{background:#D85A30}
+.day-right{text-align:right;flex-shrink:0}
+.day-spent{font-size:17px;font-weight:600;color:#1a1a1a}
+.day-balance{font-size:11px;margin-top:2px}
+.day-balance.pos{color:#0a6644}.day-balance.neg{color:#b33a1a}
+.keypad-wrap{background:#fff;border-radius:16px;border:0.5px solid #e0e0da;padding:16px;margin-bottom:12px}
+.kp-header{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.kp-day-name{font-size:15px;font-weight:600}
+.kp-budget-lbl{font-size:12px;color:#888}
+.kp-display{background:#f5f5f0;border-radius:10px;padding:10px 16px;margin-bottom:10px;display:flex;align-items:baseline;justify-content:flex-end;gap:5px}
+.kp-num{font-size:32px;font-weight:600;min-width:90px;text-align:right;color:#1a1a1a;font-variant-numeric:tabular-nums}
+.kp-yen{font-size:15px;color:#888}
+.preset-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.preset-btn{border:0.5px solid #ccc;border-radius:20px;background:none;padding:7px 13px;font-size:13px;color:#555;cursor:pointer}
+.preset-btn:active{background:#f0f0ea}
+.kp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.kp-btn{border:0.5px solid #ddd;border-radius:12px;background:#f9f9f7;padding:16px 0;font-size:22px;font-weight:500;color:#1a1a1a;cursor:pointer;text-align:center}
+.kp-btn:active{background:#e8e8e2}
+.kp-btn.zero{grid-column:span 2}
+.kp-btn.del{font-size:18px;color:#888}
+.kp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kp-ok{border:none;border-radius:12px;background:#1D9E75;padding:16px 0;font-size:16px;font-weight:600;color:#fff;cursor:pointer;text-align:center}
+.kp-ok:active{background:#0F6E56}
+.kp-cancel{border:0.5px solid #ccc;border-radius:12px;background:none;padding:16px 0;font-size:16px;color:#888;cursor:pointer;text-align:center}
+.kp-cancel:active{background:#f0f0ea}
+.history-box{background:#fff;border-radius:14px;border:0.5px solid #e0e0da;padding:14px 16px;margin-bottom:20px}
+.history-title{font-size:12px;color:#888;margin-bottom:10px;font-weight:500}
+.history-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid #efefea;font-size:13px}
+.history-row:last-child{border-bottom:none}
+.history-row.current{font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="app-title">1日1,000円生活</span>
+  <div class="week-nav">
+    <button class="wnav-btn" onclick="changeWeek(-1)">←</button>
+    <span class="week-lbl" id="week-lbl"></span>
+    <button class="wnav-btn" onclick="changeWeek(1)">→</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-lbl">今週の支出</div>
+      <div class="stat-val" id="s-spent">¥0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">残り / 繰越</div>
+      <div class="stat-val" id="s-remain">¥7,000</div>
+    </div>
+  </div>
+
+  <div class="day-list" id="day-list"></div>
+
+  <div class="keypad-wrap" id="keypad-wrap" style="display:none">
+    <div class="kp-header">
+      <span class="kp-day-name" id="kp-day-name"></span>
+      <span class="kp-budget-lbl" id="kp-budget-lbl"></span>
+    </div>
+    <div class="preset-row" id="preset-row"></div>
+    <div class="kp-display">
+      <span class="kp-num" id="kp-display">0</span>
+      <span class="kp-yen">円</span>
+    </div>
+    <div class="kp-grid">
+      <button class="kp-btn" onclick="kpInput('7')">7</button>
+      <button class="kp-btn" onclick="kpInput('8')">8</button>
+      <button class="kp-btn" onclick="kpInput('9')">9</button>
+      <button class="kp-btn" onclick="kpInput('4')">4</button>
+      <button class="kp-btn" onclick="kpInput('5')">5</button>
+      <button class="kp-btn" onclick="kpInput('6')">6</button>
+      <button class="kp-btn" onclick="kpInput('1')">1</button>
+      <button class="kp-btn" onclick="kpInput('2')">2</button>
+      <button class="kp-btn" onclick="kpInput('3')">3</button>
+      <button class="kp-btn zero" onclick="kpInput('0')">0</button>
+      <button class="kp-btn del" onclick="kpDel()">⌫</button>
+    </div>
+    <div class="kp-actions">
+      <button class="kp-cancel" onclick="closeKeypad()">キャンセル</button>
+      <button class="kp-ok" onclick="kpConfirm()">確定</button>
+    </div>
+  </div>
+
+  <div class="history-box">
+    <div class="history-title">週別サマリー</div>
+    <div id="history-list"><div style="font-size:13px;color:#aaa">まだ記録がありません</div></div>
+  </div>
+</div>
+
+<script>
+const BUDGET = 1000;
+const DAYS_F = ['月曜日','火曜日','水曜日','木曜日','金曜日','土曜日','日曜日'];
+let weekOffset = 0;
+let allData = {};
+let kpDayIndex = -1;
+let kpStr = '0';
+
+function getWeekKey(off) {
+  const d = new Date();
+  const dow = d.getDay();
+  const diff = dow === 0 ? 6 : dow - 1;
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - diff + off * 7);
+  mon.setHours(0,0,0,0);
+  return mon.toISOString().slice(0,10);
+}
+
+function getWeekDates(key) {
+  const mon = new Date(key);
+  return Array.from({length:7}, (_,i) => {
+    const d = new Date(mon); d.setDate(mon.getDate()+i); return d;
+  });
+}
+
+function getPrevCarry(key) {
+  const prev = new Date(key); prev.setDate(prev.getDate()-7);
+  const pk = prev.toISOString().slice(0,10);
+  if (!allData[pk]) return 0;
+  const pd = getWeekDates(pk);
+  let tot = 0; pd.forEach((_,i) => tot += (allData[pk][i]?.amount||0));
+  return (BUDGET*7) - tot + (allData[pk]._carry||0);
+}
+
+function isToday(d) { const t=new Date(); return d.toDateString()===t.toDateString(); }
+function isFuture(d) { const t=new Date(); t.setHours(0,0,0,0); return d>t; }
+
+function save(key, i, amt) {
+  if (!allData[key]) allData[key]={};
+  allData[key][i] = { amount: Math.max(0, amt) };
+  allData[key]._carry = getPrevCarry(key);
+  try { localStorage.setItem('b1000v2', JSON.stringify(allData)); } catch(e){}
+  render();
+}
+
+function load() {
+  try { const d=localStorage.getItem('b1000v2'); if(d) allData=JSON.parse(d); } catch(e){}
+}
+
+function render() {
+  const key = getWeekKey(weekOffset);
+  const dates = getWeekDates(key);
+  const carry = getPrevCarry(key);
+  const wd = allData[key]||{};
+  const mon=dates[0], sun=dates[6];
+  document.getElementById('week-lbl').textContent =
+    `${mon.getMonth()+1}/${mon.getDate()} – ${sun.getMonth()+1}/${sun.getDate()}`;
+
+  let weekSpent = 0;
+  dates.forEach((_,i) => weekSpent += (wd[i]?.amount||0));
+  const totalBudget = BUDGET*7 + carry;
+  const remain = totalBudget - weekSpent;
+
+  document.getElementById('s-spent').textContent = `¥${weekSpent.toLocaleString()}`;
+  const sr = document.getElementById('s-remain');
+  sr.textContent = `¥${Math.abs(Math.round(remain)).toLocaleString()}${remain<0?' 超過':''}`;
+  sr.className = 'stat-val ' + (remain>=0?'pos':'neg');
+
+  const list = document.getElementById('day-list');
+  list.innerHTML = '';
+  let runBudget = carry;
+
+  dates.forEach((date, i) => {
+    runBudget += BUDGET;
+    const spent = wd[i]?.amount||0;
+    const balance = runBudget - spent;
+    const future = isFuture(date);
+    const today = isToday(date);
+    const pct = Math.min(spent/BUDGET,1)*100;
+    const over = spent > BUDGET;
+
+    const el = document.createElement('div');
+    el.className = 'day-item'+(today?' today':'')+(kpDayIndex===i?' selected':'')+(future?' future':'');
+    if (!future) el.onclick = () => openKeypad(i, runBudget);
+    el.innerHTML = `
+      <div class="day-left">
+        <div class="day-name">${DAYS_F[i]}${today?'<span class="today-badge">今日</span>':''}</div>
+        <div class="day-sub">${date.getMonth()+1}/${date.getDate()}　予算 ¥${Math.round(runBudget).toLocaleString()}</div>
+        <div class="day-bar"><div class="day-bar-fill${over?' over':''}" style="width:${Math.round(pct)}%"></div></div>
+      </div>
+      <div class="day-right">
+        <div class="day-spent">${future ? '–' : '¥'+spent.toLocaleString()}</div>
+        ${!future ? `<div class="day-balance ${balance>=0?'pos':'neg'}">${balance>=0?'+':''}¥${Math.abs(Math.round(balance)).toLocaleString()}</div>` : ''}
+      </div>`;
+    list.appendChild(el);
+    runBudget = balance;
+  });
+
+  renderHistory();
+}
+
+function openKeypad(i, budget) {
+  kpDayIndex = i;
+  const key = getWeekKey(weekOffset);
+  const cur = allData[key]?.[i]?.amount||0;
+  kpStr = cur > 0 ? String(cur) : '0';
+  document.getElementById('kp-day-name').textContent = DAYS_F[i];
+  document.getElementById('kp-budget-lbl').textContent = `予算 ¥${Math.round(budget).toLocaleString()}`;
+  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+  document.getElementById('preset-row').innerHTML =
+    [200,300,500,700,1000].map(v=>`<button class="preset-btn" onclick="kpSet(${v})">¥${v}</button>`).join('');
+  document.getElementById('keypad-wrap').style.display='block';
+  document.getElementById('keypad-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+  render();
+}
+
+function closeKeypad() {
+  kpDayIndex = -1;
+  document.getElementById('keypad-wrap').style.display='none';
+  render();
+}
+
+function kpInput(d) {
+  if (kpStr==='0') kpStr=d;
+  else if (kpStr.length<6) kpStr+=d;
+  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+}
+
+function kpDel() {
+  kpStr = kpStr.length>1 ? kpStr.slice(0,-1) : '0';
+  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+}
+
+function kpSet(v) {
+  kpStr = String(v);
+  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+}
+
+function kpConfirm() {
+  if (kpDayIndex<0) return;
+  save(getWeekKey(weekOffset), kpDayIndex, parseInt(kpStr,10)||0);
+  closeKeypad();
+}
+
+function renderHistory() {
+  const keys = Object.keys(allData).filter(k=>k.match(/^\d{4}/)).sort().reverse();
+  const div = document.getElementById('history-list');
+  if (!keys.length) { div.innerHTML='<div style="font-size:13px;color:#aaa">まだ記録がありません</div>'; return; }
+  const cur = getWeekKey(weekOffset);
+  div.innerHTML = keys.slice(0,6).map(key => {
+    const dates = getWeekDates(key);
+    const wd = allData[key]||{};
+    let tot=0; dates.forEach((_,i)=>tot+=(wd[i]?.amount||0));
+    const carry = getPrevCarry(key);
+    const rem = (BUDGET*7+carry)-tot;
+    const mon=dates[0],sun=dates[6];
+    return `<div class="history-row${key===cur?' current':''}">
+      <span style="color:#888">${mon.getMonth()+1}/${mon.getDate()}–${sun.getMonth()+1}/${sun.getDate()}</span>
+      <span>¥${tot.toLocaleString()}</span>
+      <span style="color:${rem>=0?'#0a6644':'#b33a1a'}">${rem>=0?'+':''}¥${Math.abs(Math.round(rem)).toLocaleString()}</span>
+    </div>`;
+  }).join('');
+}
+
+function changeWeek(d) { weekOffset+=d; closeKeypad(); render(); }
+
+load(); render();
+</script>
+</body>
+</html>
