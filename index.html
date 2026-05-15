@@ -167,7 +167,7 @@ function getPrevCarry(key) {
 }
 
 function isToday(d) { const t=new Date(); return d.toDateString()===t.toDateString(); }
-function isFuture(d) { const t=new Date(); t.setHours(0,0,0,0); return d>t; }
+function isFuture(d) { const t=new Date(); t.setHours(23,59,59,999); return d>t; }
 
 function save(key, i, amt) {
   if (!allData[key]) allData[key]={};
