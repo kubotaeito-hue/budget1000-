@@ -134,6 +134,10 @@ let allData = {};
 let kpDayIndex = -1;
 let kpStr = '0';
 
+function toLocalKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function getWeekKey(off) {
   const d = new Date();
   const dow = d.getDay();
@@ -141,19 +145,21 @@ function getWeekKey(off) {
   const mon = new Date(d);
   mon.setDate(d.getDate() - diff + off * 7);
   mon.setHours(0,0,0,0);
-  return mon.toISOString().slice(0,10);
+  return toLocalKey(mon);
 }
 
 function getWeekDates(key) {
-  const mon = new Date(key);
+  const [y,m,day] = key.split('-').map(Number);
+  const mon = new Date(y, m-1, day);
   return Array.from({length:7}, (_,i) => {
     const d = new Date(mon); d.setDate(mon.getDate()+i); return d;
   });
 }
 
 function getPrevCarry(key) {
-  const prev = new Date(key); prev.setDate(prev.getDate()-7);
-  const pk = prev.toISOString().slice(0,10);
+  const [y,m,day] = key.split('-').map(Number);
+  const prev = new Date(y, m-1, day-7);
+  const pk = toLocalKey(prev);
   if (!allData[pk]) return 0;
   const pd = getWeekDates(pk);
   let tot = 0; pd.forEach((_,i) => tot += (allData[pk][i]?.amount||0));
