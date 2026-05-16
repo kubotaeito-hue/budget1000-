@@ -64,6 +64,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku
 .history-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid #efefea;font-size:13px}
 .history-row:last-child{border-bottom:none}
 .history-row.current{font-weight:600}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:20px;padding:24px 20px;max-width:360px;width:100%;text-align:center}
+.modal-icon{font-size:48px;margin-bottom:8px}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:13px;color:#888;margin-bottom:16px}
+.penalty-card{border-radius:14px;padding:16px;margin-bottom:12px;text-align:left}
+.penalty-card.light{background:#FFF8E1;border:1px solid #FFD54F}
+.penalty-card.mid{background:#FFF3E0;border:1px solid #FF9800}
+.penalty-card.heavy{background:#FFEBEE;border:1px solid #EF5350}
+.penalty-label{font-size:11px;font-weight:600;color:#888;margin-bottom:6px}
+.penalty-text{font-size:16px;font-weight:600;color:#1a1a1a;line-height:1.5}
+.penalty-over{font-size:12px;color:#b33a1a;margin-top:6px}
+.modal-ok{width:100%;border:none;border-radius:12px;background:#1a1a1a;color:#fff;font-size:16px;font-weight:600;padding:14px 0;cursor:pointer;margin-top:4px}
+.modal-ok:active{background:#333}
+.day-penalty-btn{font-size:11px;color:#b33a1a;margin-top:4px;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
 </style>
 </head>
 <body>
@@ -116,13 +131,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku
     </div>
     <div class="kp-actions">
       <button class="kp-cancel" onclick="closeKeypad()">キャンセル</button>
-      <button class="kp-ok" onclick="kpConfirm()">確定</button>
+      <button class="kp-ok" onclick="kpConfirm()">追加する</button>
+    </div>
+    <div style="margin-top:8px">
+      <button class="kp-cancel" style="width:100%;font-size:13px;padding:10px 0;color:#b33a1a;border-color:#f0c0b0" onclick="kpReset()">今日の記録をリセット</button>
     </div>
   </div>
+
+  <div id="week-penalty-area"></div>
 
   <div class="history-box">
     <div class="history-title">週別サマリー</div>
     <div id="history-list"><div style="font-size:13px;color:#aaa">まだ記録がありません</div></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-bg" style="display:none" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-icon" id="modal-icon"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div id="modal-penalties"></div>
+    <button class="modal-ok" onclick="closeModal()">わかった、やります！</button>
   </div>
 </div>
 
@@ -225,12 +255,28 @@ function render() {
       <div class="day-right">
         <div class="day-spent">${future ? '–' : '¥'+spent.toLocaleString()}</div>
         ${!future ? `<div class="day-balance ${balance>=0?'pos':'neg'}">${balance>=0?'+':''}¥${Math.abs(Math.round(balance)).toLocaleString()}</div>` : ''}
+        ${(!future && spent > BUDGET) ? `<button class="day-penalty-btn" onclick="event.stopPropagation();showDayPenalty('${DAYS_F[i]}',${spent-BUDGET})">🎲 罰ゲーム</button>` : ''}
       </div>`;
     list.appendChild(el);
     runBudget = balance;
   });
 
   renderHistory();
+
+  // 週間罰ゲームボタン
+  const weekOver = -remain;
+  const wa = document.getElementById('week-penalty-area');
+  if (weekOver > 0) {
+    wa.innerHTML = `<div style="background:#FFEBEE;border:1px solid #EF5350;border-radius:14px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#b33a1a">⚠️ 週間予算オーバー</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">¥${Math.round(weekOver).toLocaleString()}の超過</div>
+      </div>
+      <button onclick="showWeekPenalty(${Math.round(weekOver)})" style="border:none;border-radius:10px;background:#b33a1a;color:#fff;font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer">🎲 週間罰ゲーム</button>
+    </div>`;
+  } else {
+    wa.innerHTML = '';
+  }
 }
 
 function openKeypad(i, budget) {
@@ -254,25 +300,39 @@ function closeKeypad() {
   render();
 }
 
+function kpRefresh() {
+  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+  if (kpDayIndex >= 0) save(getWeekKey(weekOffset), kpDayIndex, parseInt(kpStr,10)||0);
+}
+
 function kpInput(d) {
   if (kpStr==='0') kpStr=d;
   else if (kpStr.length<6) kpStr+=d;
-  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+  kpRefresh();
 }
 
 function kpDel() {
   kpStr = kpStr.length>1 ? kpStr.slice(0,-1) : '0';
-  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+  kpRefresh();
 }
 
 function kpSet(v) {
   kpStr = String(v);
-  document.getElementById('kp-display').textContent = Number(kpStr).toLocaleString();
+  kpRefresh();
+}
+
+function kpReset() {
+  if (kpDayIndex<0) return;
+  save(getWeekKey(weekOffset), kpDayIndex, 0);
+  kpStr = '0';
+  document.getElementById('kp-display').textContent = '0';
 }
 
 function kpConfirm() {
   if (kpDayIndex<0) return;
-  save(getWeekKey(weekOffset), kpDayIndex, parseInt(kpStr,10)||0);
+  const key = getWeekKey(weekOffset);
+  const prev = allData[key]?.[kpDayIndex]?.amount || 0;
+  save(key, kpDayIndex, prev + (parseInt(kpStr,10)||0));
   closeKeypad();
 }
 
@@ -297,6 +357,103 @@ function renderHistory() {
 }
 
 function changeWeek(d) { weekOffset+=d; closeKeypad(); render(); }
+
+// ===== 罰ゲームデータ =====
+const PENALTIES = {
+  light: [
+    { type:'💪 運動', text:'スクワット 30回' },
+    { type:'💪 運動', text:'腕立て伏せ 20回' },
+    { type:'💪 運動', text:'腹筋 30回' },
+    { type:'💰 募金', text:'100円を募金箱へ' },
+    { type:'💰 募金', text:'コンビニ募金 100円' },
+    { type:'💰 募金', text:'オンライン寄付 100円（Yahoo!ネット募金など）' },
+  ],
+  mid: [
+    { type:'💪 運動', text:'スクワット 50回 ＋ 腕立て 30回' },
+    { type:'💪 運動', text:'プランク 1分 × 3セット' },
+    { type:'💪 運動', text:'腹筋 50回 ＋ 背筋 30回' },
+    { type:'💰 募金', text:'300円を赤い羽根共同募金へ' },
+    { type:'💰 募金', text:'コンビニ募金 300円' },
+    { type:'💰 募金', text:'フードバンクに300円寄付' },
+    { type:'💰 募金', text:'ユニセフに300円オンライン寄付' },
+  ],
+  heavy: [
+    { type:'💪 運動', text:'スクワット 100回（休憩なし）' },
+    { type:'💪 運動', text:'プランク 2分 ＋ 腕立て 50回 ＋ 腹筋 50回' },
+    { type:'💪 運動', text:'バービー 20回 ＋ スクワット 50回 ＋ 腹筋 50回' },
+    { type:'💰 募金', text:'500円を好きな団体に寄付' },
+    { type:'💰 募金', text:'赤十字に500円オンライン寄付' },
+    { type:'💰 募金', text:'地域の子ども食堂に500円寄付' },
+    { type:'💰 募金', text:'環境保護団体に500円寄付' },
+  ],
+  week_mid: [
+    { type:'💪 運動', text:'毎朝5分ストレッチを3日間続ける' },
+    { type:'💪 運動', text:'スクワット 100回 ＋ 腕立て 50回 × 2日' },
+    { type:'💰 募金', text:'500円を2団体に分けて寄付（合計1,000円）' },
+    { type:'💰 募金', text:'ユニセフに800円オンライン寄付' },
+    { type:'💰 募金', text:'フードバンクに1,000円寄付' },
+  ],
+  week_heavy: [
+    { type:'💪 運動', text:'毎日10分の筋トレを5日間続ける' },
+    { type:'💪 運動', text:'バービー 30回 ＋ スクワット 100回 ＋ 腕立て 50回 × 3日' },
+    { type:'💰 募金', text:'超過額の半分を募金（最低1,000円）' },
+    { type:'💰 募金', text:'好きな慈善団体に2,000円寄付' },
+    { type:'💰 募金', text:'複数団体に合計1,500円を分けて寄付' },
+  ]
+};
+
+function getRand(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+function getPenaltyLevel(over) {
+  if (over <= 200) return 'light';
+  if (over <= 500) return 'mid';
+  return 'heavy';
+}
+
+function getLevelLabel(level) {
+  if (level==='light') return { label:'軽め', cls:'light', icon:'😅' };
+  if (level==='mid')   return { label:'中くらい', cls:'mid', icon:'😬' };
+  return { label:'重め', cls:'heavy', icon:'😱' };
+}
+
+function showDayPenalty(dayName, over) {
+  const level = getPenaltyLevel(over);
+  const info = getLevelLabel(level);
+  const p = getRand(PENALTIES[level]);
+  document.getElementById('modal-icon').textContent = info.icon;
+  document.getElementById('modal-title').textContent = `${dayName}の罰ゲーム！`;
+  document.getElementById('modal-sub').textContent = `¥${over.toLocaleString()}の超過 → ${info.label}ペナルティ`;
+  document.getElementById('modal-penalties').innerHTML = `
+    <div class="penalty-card ${info.cls}">
+      <div class="penalty-label">${p.type}</div>
+      <div class="penalty-text">${p.text}</div>
+      <div class="penalty-over">超過額：¥${over.toLocaleString()}</div>
+    </div>`;
+  document.getElementById('modal-bg').style.display = 'flex';
+}
+
+function showWeekPenalty(over) {
+  const level = over <= 1000 ? 'week_mid' : 'week_heavy';
+  const cls = over <= 1000 ? 'mid' : 'heavy';
+  const icon = over <= 1000 ? '😤' : '🔥';
+  const p = getRand(PENALTIES[level]);
+  document.getElementById('modal-icon').textContent = icon;
+  document.getElementById('modal-title').textContent = '週間罰ゲーム！！';
+  document.getElementById('modal-sub').textContent = `週合計¥${over.toLocaleString()}の超過 → 重めのペナルティ`;
+  document.getElementById('modal-penalties').innerHTML = `
+    <div class="penalty-card ${cls}">
+      <div class="penalty-label">${p.type}（週間ペナルティ）</div>
+      <div class="penalty-text">${p.text}</div>
+      <div class="penalty-over">週間超過額：¥${over.toLocaleString()}</div>
+    </div>`;
+  document.getElementById('modal-bg').style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-bg')) {
+    document.getElementById('modal-bg').style.display = 'none';
+  }
+}
 
 load(); render();
 </script>
